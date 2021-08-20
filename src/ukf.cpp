@@ -9,10 +9,10 @@ using Eigen::VectorXd;
  */
 UKF::UKF() {
   // if this is false, laser measurements will be ignored (except during init)
-  use_laser_ = false;
+  use_laser_ = true;
 
   // if this is false, radar measurements will be ignored (except during init)
-  use_radar_ = true;
+  use_radar_ = false;
   is_initialized_ = false;
   // initial state vector
   x_ = VectorXd(5);
@@ -184,7 +184,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
     }
     for (int i = 0;i<2*n_aug_+1;i++)
     {
-        S + weights_(i)*((Zsig.col(i)-z_pred)*((Zsig.col(i)-z_pred).transpose()));
+        S = weights_(i)*((Zsig.col(i)-z_pred)*((Zsig.col(i)-z_pred).transpose()));
     }
 
     Eigen::MatrixXd R = Eigen::MatrixXd(n_z,n_z);
@@ -242,7 +242,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     }
     for (int i = 0;i<2*n_aug_+1;i++)
     {
-        S + weights_(i)*((Zsig.col(i)-z_pred)*((Zsig.col(i)-z_pred).transpose()));
+        S = weights_(i)*((Zsig.col(i)-z_pred)*((Zsig.col(i)-z_pred).transpose()));
     }
 
     Eigen::MatrixXd R = Eigen::MatrixXd(n_z,n_z);
@@ -261,8 +261,8 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
     Eigen::MatrixXd K = Tc*S.inverse();
 
-    //x_ = x_ +K*(meas_package.raw_measurements_-z_pred);
-    //P_ = P_-K*S*K.transpose();
+    x_ = x_ +K*(meas_package.raw_measurements_-z_pred);
+    P_ = P_-K*S*K.transpose();
     //std::cout<<Zsig<<std::endl;
     //std::cout<<P_<<std::endl;
 }
