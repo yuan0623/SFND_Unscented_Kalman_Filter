@@ -41,7 +41,8 @@ class UKF {
    */
   void UpdateRadar(MeasurementPackage meas_package);
 
-
+  void generateSigmaPoints(Eigen::MatrixXd &Xsig_aug);
+  void predictSigmaPoints(Eigen::MatrixXd &Xsig_pred,double delta_t);
   // initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
 
@@ -56,7 +57,6 @@ class UKF {
 
   // state covariance matrix
   Eigen::MatrixXd P_;
-
   // predicted sigma points matrix
   Eigen::MatrixXd Xsig_pred_;
 
@@ -89,7 +89,6 @@ class UKF {
 
   // State dimension
   int n_x_;
-
   // Augmented state dimension
   int n_aug_;
 
