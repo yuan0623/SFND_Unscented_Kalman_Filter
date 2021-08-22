@@ -34,7 +34,6 @@ class UKF {
    * @param meas_package The measurement at k+1
    */
   void UpdateLidar(MeasurementPackage meas_package);
-
   /**
    * Updates the state and the state covariance matrix using a radar measurement
    * @param meas_package The measurement at k+1
@@ -43,6 +42,9 @@ class UKF {
 
   void generateSigmaPoints(Eigen::MatrixXd &Xsig_aug);
   void predictSigmaPoints(Eigen::MatrixXd &Xsig_pred,double delta_t);
+  void measurementUpdate(const Eigen::VectorXd& z, Eigen::MatrixXd Zsig, Eigen::VectorXd z_pred, Eigen::MatrixXd S);
+
+\
   // initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
 
@@ -94,7 +96,15 @@ class UKF {
 
   // Sigma point spreading parameter
   double lambda_;
-  long previous_time_;
+
+private:
+
+    long previous_time_;
+
+    int n_z_;
+
+
+
 };
 
 #endif  // UKF_H

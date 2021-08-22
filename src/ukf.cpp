@@ -12,7 +12,7 @@ UKF::UKF() {
   use_laser_ = true;
 
   // if this is false, radar measurements will be ignored (except during init)
-  use_radar_ = false;
+  use_radar_ = true;
   is_initialized_ = false;
   // initial state vector
   x_ = VectorXd(5);
@@ -80,22 +80,25 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
    */
     if(is_initialized_ == false)
     {
-        is_initialized_ = true;
+        std::cout<<"Initialization"<<std::endl;
+
         previous_time_ = meas_package.timestamp_;
-        if(meas_package.sensor_type_==MeasurementPackage::RADAR)
+        if(meas_package.sensor_type_==MeasurementPackage::RADAR and use_radar_==true)
         {
             auto rho = static_cast<float>(meas_package.raw_measurements_(0));
             auto phi = static_cast<float>(meas_package.raw_measurements_(1));
             // auto rho_dot = static_cast<float>(meas_package.raw_measurements_(2));
             x_ << rho * cos(phi), rho * sin(phi), 0, 0, 0;
-
+            std::cout<<x_<<std::endl;
             P_ << std_radr_* std_radr_, 0, 0, 0, 0,
                     0, std_radr_ * std_radr_, 0, 0, 0,
                     0, 0, std_radrd_ * std_radrd_, 0, 0,
                     0, 0, 0, std_radphi_ * std_radphi_, 0,
                     0, 0, 0, 0, std_radphi_ * std_radphi_;
+            //predictSigmaPoints(Xsig_pred_,0.1);
+            is_initialized_ = true;
         }
-        else if(meas_package.sensor_type_==MeasurementPackage::LASER)
+        else if(meas_package.sensor_type_==MeasurementPackage::LASER and use_laser_==true)
         {
             x_(0) = meas_package.raw_measurements_[0];
             x_(1) = meas_package.raw_measurements_[1];
@@ -104,7 +107,10 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
                     0, 0, 1, 0, 0,
                     0, 0, 0, 1, 0,
                     0, 0, 0, 0, 1;
+            //predictSigmaPoints(Xsig_pred_,0.1);
+            is_initialized_ = true;
         }
+
     }
     else{
         if(meas_package.sensor_type_==MeasurementPackage::RADAR and use_radar_==true)
@@ -123,7 +129,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     previous_time_ = meas_package.timestamp_;
 
     if(dt>0){
-
+        std::cout<<"prediction"<<std::endl;
         Prediction(dt);
     }
 
@@ -170,10 +176,13 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
    * covariance, P_.
    * You can also calculate the lidar NIS, if desired.
    */
-    int n_z = 2;
-    Eigen::MatrixXd Zsig = Eigen::MatrixXd::Zero(n_z,2*n_aug_+1);
-    Eigen::VectorXd z_pred = Eigen::VectorXd::Zero(n_z);
-    Eigen::MatrixXd S = Eigen::MatrixXd::Zero(n_z,n_z);
+
+    n_z_ = 2;
+    Eigen::MatrixXd Zsig = Eigen::MatrixXd::Zero(n_z_,2*n_aug_+1);
+    Eigen::VectorXd z_pred = Eigen::VectorXd::Zero(n_z_);
+    Eigen::MatrixXd S = Eigen::MatrixXd::Zero(n_z_,n_z_);
+    std::cout<<"Xsig_pred_"<<std::endl;
+    std::cout<<Xsig_pred_<<std::endl;
 
     for(int i=0; i<2*n_aug_+1; i++)
     {
@@ -187,40 +196,41 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
         Zsig.col(i)<<p_x,
                      p_y;
     }
-
+    z_pred.fill(0);
     for (int i = 0;i<2*n_aug_+1;i++)
     {
         z_pred = z_pred+weights_(i)*Zsig.col(i);
     }
+
     for (int i = 0;i<2*n_aug_+1;i++)
     {
         VectorXd z_diff = Zsig.col(i) - z_pred;
         S = weights_(i)*z_diff*z_diff.transpose();
     }
 
-    Eigen::MatrixXd R = Eigen::MatrixXd::Zero(n_z,n_z);
+    Eigen::MatrixXd R = Eigen::MatrixXd::Zero(n_z_,n_z_);
     R(0,0) = pow(std_laspx_,2);
     R(1,1) = pow(std_laspx_,2);
 
     S = S+R;
+    measurementUpdate(meas_package.raw_measurements_, Zsig,  z_pred,  S);
 
-    Eigen::MatrixXd Tc = Eigen::MatrixXd::Zero(n_x_,n_z);
+    /*
+    Eigen::MatrixXd Tc = Eigen::MatrixXd::Zero(n_z_,n_z_);
     for(int i=0;i<2*n_aug_+1;i++)
     {
-        std::cout<<i<<std::endl;
-        auto diff = Xsig_pred_.col(i)-x_;
-        std::cout<<diff<<std::endl;
+
         Tc = Tc + weights_(i)*((Xsig_pred_.col(i)-x_)*((Zsig.col(i)-z_pred).transpose()));
     }
 
     Eigen::MatrixXd K = Tc*S.inverse();
 
 
-    Eigen::VectorXd raw_sensor_data = meas_package.raw_measurements_;
+
     x_ = x_ +K*(meas_package.raw_measurements_-z_pred);
 
     P_ = P_-K*S*K.transpose();
-
+    */
 
 
 }
@@ -233,10 +243,11 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
    * You can also calculate the radar NIS, if desired.
    */
 
-    int n_z = 3;
-    Eigen::MatrixXd Zsig = Eigen::MatrixXd::Zero(n_z,2*n_aug_+1);
-    Eigen::VectorXd z_pred = Eigen::VectorXd::Zero(n_z);
-    Eigen::MatrixXd S = Eigen::MatrixXd::Zero(n_z,n_z);
+
+    n_z_ = 3;
+    Eigen::MatrixXd Zsig = Eigen::MatrixXd::Zero(n_z_,2*n_aug_+1);
+    Eigen::VectorXd z_pred = Eigen::VectorXd::Zero(n_z_);
+    Eigen::MatrixXd S = Eigen::MatrixXd::Zero(n_z_,n_z_);
 
     for(int i=0; i<2*n_aug_+1; i++)
     {
@@ -246,31 +257,44 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
         double yaw = Xsig_pred_(3,i);
         double d_yaw = Xsig_pred_(4,i);
 
+        double v_x = cos(yaw) * v;
+        double v_y = sin(yaw) * v;
 
-        Zsig.col(i)<<sqrt(pow(p_x,2)+pow(p_y,2)),
-                atan(p_y/p_x),
-                (p_x*cos(yaw)*v+p_y*sin(yaw)*v)/(sqrt(pow(p_x,2)+pow(p_y,2)));
+        Zsig(0,i)=sqrt(pow(p_x,2)+pow(p_y,2));
+        Zsig(1,i)=atan2(p_y,p_x);
+        if (Zsig(0, i) < 0.001) {
+            Zsig(2, i) = (p_x * v_x + p_y * v_y) / 0.001;
+        } else {
+            Zsig(2, i) = (p_x * v_x + p_y * v_y) / Zsig(0, i);
+        }
     }
+    std::cout<<"Zsig"<<std::endl;
+    std::cout<<Zsig<<std::endl;
 
+    z_pred.fill(0);
     for (int i = 0;i<2*n_aug_+1;i++)
     {
         z_pred = z_pred+weights_(i)*Zsig.col(i);
     }
+
     for (int i = 0;i<2*n_aug_+1;i++)
     {
         VectorXd z_diff = Zsig.col(i) - z_pred;
         S = weights_(i)*z_diff*z_diff.transpose();
     }
 
-    Eigen::MatrixXd R = Eigen::MatrixXd::Zero(n_z,n_z);
+
+
+    Eigen::MatrixXd R = Eigen::MatrixXd::Zero(n_z_,n_z_);
     R(0,0) = pow(std_radr_,2);
     R(1,1) = pow(std_radphi_,2);
     R(2,2) = pow(std_radrd_,2);
     S = S+R;
 
-
+    measurementUpdate(meas_package.raw_measurements_, Zsig,  z_pred,  S);
+    /*
     // update state
-    Eigen::MatrixXd Tc = Eigen::MatrixXd::Zero(n_x_,n_z);
+    Eigen::MatrixXd Tc = Eigen::MatrixXd::Zero(n_x_,n_z_);
     for(int i=0;i<2*n_aug_+1;i++)
     {
         Tc = Tc + weights_(i)*((Xsig_pred_.col(i)-x_)*((Zsig.col(i)-z_pred).transpose()));
@@ -280,7 +304,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
     x_ = x_ +K*(meas_package.raw_measurements_-z_pred);
     P_ = P_-K*S*K.transpose();
-    std::cout<<Zsig<<std::endl;
+    */
     //std::cout<<P_<<std::endl;
 }
 void UKF::generateSigmaPoints(Eigen::MatrixXd &Xsig_aug){
@@ -300,8 +324,8 @@ void UKF::generateSigmaPoints(Eigen::MatrixXd &Xsig_aug){
     P_aug(n_x_,n_x_) = pow(std_a_,2);
     P_aug(n_x_+1,n_x_+1) = pow(std_yawdd_,2);
 
-    std::cout<<x_aug<<std::endl;
-    std::cout<<P_aug<<std::endl;
+    //std::cout<<x_aug<<std::endl;
+    //std::cout<<P_aug<<std::endl;
 
 
     Eigen::MatrixXd A = P_aug.llt().matrixL();
@@ -367,4 +391,45 @@ void UKF::predictSigmaPoints(Eigen::MatrixXd &Xsig_pred,double delta_t){
 
 
 
+}
+
+void UKF::measurementUpdate(const Eigen::VectorXd& z, Eigen::MatrixXd Zsig, Eigen::VectorXd z_pred, Eigen::MatrixXd S){
+    MatrixXd Tc = MatrixXd::Zero(n_x_, n_z_);
+
+    for (int i = 0; i < 2 * n_aug_ + 1; i++) {
+        VectorXd x_diff = Xsig_pred_.col(i) - x_;
+        VectorXd z_diff = Zsig.col(i) - z_pred;
+
+
+        while (z_diff(1) > M_PI) {
+            z_diff(1) = z_diff(1) - 2. * M_PI;
+        }
+        while (z_diff(1) <- M_PI) {
+            z_diff(1) = z_diff(1) + 2. * M_PI;
+        }
+
+        // x_diff
+        while (x_diff(3) > M_PI) {
+            x_diff(3) = x_diff(3) - 2. * M_PI;
+        }
+        while (x_diff(3) <- M_PI) {
+            x_diff(3) = x_diff(3) + 2. * M_PI;
+        }
+
+        Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
+    }
+
+    MatrixXd K = Tc * S.inverse();
+    VectorXd z_diff = z - z_pred;
+
+    while (z_diff(1) > M_PI) {
+        z_diff(1) = z_diff(1) - 2. * M_PI;
+    }
+    while (z_diff(1) <- M_PI) {
+        z_diff(1) = z_diff(1) + 2. * M_PI;
+    }
+
+
+    P_ = P_ - K*S*K.transpose();
+    x_ = x_ + K * z_diff;
 }
