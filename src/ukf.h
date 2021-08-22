@@ -94,6 +94,7 @@ class UKF {
 
   // Sigma point spreading parameter
   double lambda_;
+  long previous_time_;
 };
 
 #endif  // UKF_H
