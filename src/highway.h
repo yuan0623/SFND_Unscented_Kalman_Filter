@@ -13,7 +13,7 @@ public:
 	Car egoCar;
 	Tools tools;
 	bool pass = true;
-	std::vector<double> rmseThreshold = {0.30,0.16,0.95,0.70};
+	std::vector<double> rmseThreshold = {0.30,0.16,0.95,1.10};
 	std::vector<double> rmseFailLog = {0.0,0.0,0.0,0.0};
 	Lidar* lidar;
 	
