@@ -23,7 +23,7 @@ public:
 	std::vector<bool> trackCars = {true,true,true};
 	// Visualize sensor measurements
 	bool visualize_lidar = true;
-	bool visualize_radar = false;
+	bool visualize_radar = true;
 	bool visualize_pcd = false;
 	// Predict path in the future using UKF
 	double projectedTime = 0;
@@ -129,8 +129,9 @@ public:
 			{
 				VectorXd gt(4);
 				gt << traffic[i].position.x, traffic[i].position.y, traffic[i].velocity*cos(traffic[i].angle), traffic[i].velocity*sin(traffic[i].angle);
-
 				tools.ground_truth.push_back(gt);
+
+
 				tools.lidarSense(traffic[i], viewer, timestamp, visualize_lidar);
 				tools.radarSense(traffic[i], egoCar, viewer, timestamp, visualize_radar);
 				tools.ukfResults(traffic[i],viewer, projectedTime, projectedSteps);
@@ -150,6 +151,7 @@ public:
 		viewer->addText(" Y: "+std::to_string(rmse[1]), 30, 250, 20, 1, 1, 1, "rmse_y");
 		viewer->addText("Vx: "	+std::to_string(rmse[2]), 30, 225, 20, 1, 1, 1, "rmse_vx");
 		viewer->addText("Vy: "	+std::to_string(rmse[3]), 30, 200, 20, 1, 1, 1, "rmse_vy");
+
 		if(timestamp > 1.0e6)
 		{
 
